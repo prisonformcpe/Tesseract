@@ -34,10 +34,10 @@ class SetTitlePacket extends DataPacket{
 	public $unknown3;
 
 	public function decode(){
-		$this->getVarInt($this->unknown); //Type ?
-		$this->getString($this->unknown1); //Message
-		$this->getVarInt($this->unknown2);
-		$this->getVarInt($this->unknown3);
+		$this->unknown = $this->getVarInt(); //Type ?
+		$this->unknown1 = $this->getString(); //Message
+		$this->unknown2 = $this->getVarInt();
+		$this->unknown3 = $this->getVarInt();
 	}
 
 	public function encode(){
