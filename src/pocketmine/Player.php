@@ -3581,11 +3581,10 @@ class Player extends Human implements CommandSender, InventoryHolder, ChunkLoade
 			$pk->title = $subtitle;
 			$this->dataPacket($pk);
 		}
-		return false;
 	}
 
 	/**
-	 * Send a action bar text to a player
+	 * Send an action bar text to a player
 	 *
 	 * @param $title
 	 * @return bool
@@ -3595,8 +3594,6 @@ class Player extends Human implements CommandSender, InventoryHolder, ChunkLoade
 		$pk->type = SetTitlePacket::TYPE_ACTION_BAR;
 		$pk->title = $title;
 		$this->dataPacket($pk);
-
-		return false;
 	}
 
 	/**
