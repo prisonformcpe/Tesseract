@@ -28,31 +28,30 @@ class SetTitlePacket extends DataPacket{
 
 	const NETWORK_ID = Info::SET_TITLE_PACKET;
 
-	//TODO: Find out exactly what is 0 and 1.
-	//const CLEAR = 0;
-	//const RESET = 1;
-	const SEND_TITLE = 2;
-	const SEND_SUB_TITLE = 3;
-	const SEND_ACTION_BAR = 4;
+	const TYPE_CLEAR = 0; //TODO: Find out what is exactly
+	const TYPE_RESET = 1; //TODO: Find out what is exactly
+	const TYPE_TITLE = 2;
+	const TYPE_SUB_TITLE = 3;
+	const TYPE_ACTION_BAR = 4;
 
 	public $type;
-	public $message;
-	public $unknown;
-	public $unknown1;
+	public $title;
+	public $unknownVarInt1 = 0;
+	public $unknownVarInt2 = 0;
 
 	public function decode(){
 		$this->type = $this->getVarInt();
-		$this->message = $this->getString();
-		$this->unknown = $this->getVarInt();
-		$this->unknown1 = $this->getVarInt();
+		$this->title = $this->getString();
+		$this->unknownVarInt1 = $this->getVarInt();
+		$this->unknownVarInt2 = $this->getVarInt();
 	}
 
 	public function encode(){
 		$this->reset();
 		$this->putVarInt($this->type);
-		$this->putString($this->message);
-		$this->putVarInt($this->unknown);
-		$this->putVarInt($this->unknown1);
+		$this->putString($this->title);
+		$this->putVarInt($this->unknownVarInt1);
+		$this->putVarInt($this->unknownVarInt2);
 	}
 
 	/**
