@@ -737,7 +737,7 @@ class Server{
 	 *
 	 * @return OfflinePlayer|Player
 	 */
-	public function getOfflinePlayer($name) : CompoundTag{
+	public function getOfflinePlayer($name){
 		$name = strtolower($name);
 		$result = $this->getPlayerExact($name);
 
@@ -1846,6 +1846,12 @@ class Server{
 			}
 
 			$this->enablePlugins(PluginLoadOrder::POSTWORLD);
+			
+			if($this->dserverConfig["enable"] and ($this->getAdvancedProperty("dserver.server-list", "") != "")) $this->scheduler->scheduleRepeatingTask(new scheduler\CallbackTask(
+			[
+				$this, "updateDServerInfo"
+			]),
+			$this->dserverConfig["timer"]);
 
 			if($cfgVer > $advVer){
 				$this->logger->notice("Your tesseract.yml needs update (Current : $advVer -> Latest: $cfgVer)");

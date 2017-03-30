@@ -137,6 +137,7 @@ use pocketmine\network\protocol\RespawnPacket;
 use pocketmine\network\protocol\SetEntityMotionPacket;
 use pocketmine\network\protocol\SetSpawnPositionPacket;
 use pocketmine\network\protocol\SetTimePacket;
+use pocketmine\network\protocol\SetTitlePacket;
 use pocketmine\network\protocol\StartGamePacket;
 use pocketmine\network\protocol\SetPlayerGameTypePacket;
 use pocketmine\network\protocol\TakeItemEntityPacket;
@@ -1751,15 +1752,6 @@ class Player extends Human implements CommandSender, InventoryHolder, ChunkLoade
 
 		$this->timings->stopTiming();
 		
-		//TODO: remove this workaround (broken client MCPE 1.0.0)
-		if(count($this->messageQueue) > 0){
-			$pk = new TextPacket();
-			$pk->type = TextPacket::TYPE_RAW;
-			$pk->message = implode("\n", $this->messageQueue);
-			$this->dataPacket($pk);
-			$this->messageQueue = [];
-		}
-
 		return true;
 	}
 
@@ -2143,10 +2135,6 @@ class Player extends Human implements CommandSender, InventoryHolder, ChunkLoade
 				}
 
 				$newPos = new Vector3($packet->x, $packet->y - $this->getEyeHeight(), $packet->z);
-
-				if($newPos->distanceSquared($this) == 0 and ($packet->yaw % 360) === $this->yaw and ($packet->pitch % 360) === $this->pitch){ //player hasn't moved, just client spamming packets
-					break;
-				}
 
 				$revert = false;
 				if(!$this->isAlive() or $this->spawned !== true){
@@ -3267,25 +3255,18 @@ class Player extends Human implements CommandSender, InventoryHolder, ChunkLoade
 				
                 $tile = $this->level->getTile($this->temporalVector->setComponents($packet->x, $packet->y, $packet->z));
                 if ($tile instanceof ItemFrame) {
-                    if ($this->isSpectator()) {
+                    $this->server->getPluginManager()->callEvent($ev = new ItemFrameDropItemEvent($this, $tile->getBlock(), $tile, $tile->getItem()));
+
+                    if($this->isSpectator() or $ev->isCancelled()){
                         $tile->spawnTo($this);
                         break;
                     }
-                    $this->server->getPluginManager()->callEvent($ev = new PlayerInteractEvent($this, $this->getInventory()->getItemInHand(), new Vector3($packet->x, $packet->y, $packet->z), $packet->face, PlayerInteractEvent::LEFT_CLICK_BLOCK));
-                    if (!$ev->isCancelled()) {
-                        $item = $tile->getItem();
-                        $block = $this->level->getBlock($tile);
-                        $this->server->getPluginManager()->callEvent($ev = new ItemFrameDropItemEvent($this, $block, $tile, $item));
-                        if (!$ev->isCancelled()) {
-                            if ($item->getId() !== Item::AIR) {
-                                if (lcg_value() <= $tile->getItemDropChance()) {
-                                    $this->level->dropItem($tile->getBlock(), $tile->getItem());
-                                }
-                                $tile->setItem(null);
-                                $tile->setItemRotation(0);
-                            }
-                        } else $tile->spawnTo($this);
-                    } else $tile->spawnTo($this);
+                    
+                    if(lcg_value() <= $tile->getItemDropChance()){
+                        $this->level->dropItem($tile->add(0.5, 0.5, 0.5), $ev->getItem());
+                    }
+                    $tile->setItem(null);
+                    $tile->setItemRotation(0);
                 }
 				break;
 		
@@ -3359,8 +3340,6 @@ class Player extends Human implements CommandSender, InventoryHolder, ChunkLoade
 		$this->setDataFlag(self::DATA_FLAGS, self::DATA_FLAG_ACTION, false);
 	}
 	
-	/** @var string[] */
-	private $messageQueue = [];
 
 	/**
 	 * Sends a direct chat message to a player
@@ -3369,9 +3348,7 @@ class Player extends Human implements CommandSender, InventoryHolder, ChunkLoade
 	 * @return bool
 	 */
 	public function sendMessage($message){
-
 		if($message instanceof TextContainer){
-
 			if($message instanceof TranslationContainer){
 				$this->sendTranslation($message->getText(), $message->getParameters());
 				return false;
@@ -3380,15 +3357,12 @@ class Player extends Human implements CommandSender, InventoryHolder, ChunkLoade
 			$message = $message->getText();
 
 		}
-
-		//TODO: Remove this workaround (broken client MCPE 1.0.0)
-		$this->messageQueue[] = $this->server->getLanguage()->translateString($message);
-		/*
+		
   		$pk = new TextPacket();
   		$pk->type = TextPacket::TYPE_RAW;
   		$pk->message = $this->server->getLanguage()->translateString($message);
   		$this->dataPacket($pk);
-		*/
+		
 
 		return true;
 	}
@@ -3445,6 +3419,48 @@ class Player extends Human implements CommandSender, InventoryHolder, ChunkLoade
 			return true;
 		}
 		return false;
+	}
+
+    /**
+     * Send a title text or/and with/without a sub title text to a player
+     *
+     * @param $title
+     * @param string $subtitle
+     * @return bool
+     */
+	public function sendTitle($title, $subtitle = "", $fadein = 20, $fadeout = 20, $duration = 5){
+		$pk = new SetTitlePacket();
+		$pk->type = SetTitlePacket::TYPE_TITLE;
+		$pk->title = $title;
+        $pk->fadeInDuration = $fadein;
+        $pk->fadeOutDuration = $fadeout;
+		$pk->duration = $duration;
+		$this->dataPacket($pk);
+
+		if($subtitle !== ""){
+			$pk = new SetTitlePacket();
+			$pk->type = SetTitlePacket::TYPE_SUB_TITLE;
+			$pk->title = $subtitle;
+            $pk->fadeInDuration = $fadein;
+            $pk->fadeOutDuration = $fadeout;
+			$pk->duration = $duration;
+			$this->dataPacket($pk);
+		}
+	}
+
+	/**
+	 * Send an action bar text to a player
+	 *
+	 * @param $title
+	 * @return bool
+	 */
+	public function sendActionBar($title,$fadein = 20,$fadeout = 20){
+		$pk = new SetTitlePacket();
+		$pk->type = SetTitlePacket::TYPE_ACTION_BAR;
+		$pk->title = $title;
+        $pk->fadeInDuration = $fadein;
+        $pk->fadeOutDuration = $fadeout;
+		$this->dataPacket($pk);
 	}
 
 	/**
@@ -3726,6 +3742,10 @@ class Player extends Human implements CommandSender, InventoryHolder, ChunkLoade
 			foreach($ev->getDrops() as $item){
 				$this->level->dropItem($this, $item);
 			}
+
+			if($this->floatingInventory !== null){
+                $this->floatingInventory->clearAll();
+            }
 
 			if($this->inventory !== null){
 				$this->inventory->clearAll();
